@@ -1,4 +1,6 @@
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Random;
 import java.util.Set;
 
@@ -7,13 +9,20 @@ public class EdgeOfChaosAutomata {
 	private int N;
 	private double lambda;
 	private byte[] transitions;
-	private Set<byte[]> states;
-	private byte[] state;
+	private Set<List<Byte>> states;
+	private List<Byte> state;
+	private Random random;
+	
+	public double getLambda() {
+		return lambda;
+	}
 	
 	public EdgeOfChaosAutomata(int N, int K, double lambda, Random rand) {
 		this.K = K;
 		this.N = N;
 		this.lambda = lambda;
+		this.random = rand;
+		
 		transitions = new byte[(int)Math.pow(K, N)]; //this is larger than we need due to quiescence and isotrophy but is quick to write
 		for(int i = 0; i<transitions.length; i++) {
 			if(rand.nextDouble()>lambda) {
@@ -22,18 +31,21 @@ public class EdgeOfChaosAutomata {
 		}
 	}
 	
-	public void initializeState(int width, int num_rand, double quiescent, Random rand) {
-		state = new byte[width];
+	public void initializeState(int width, int num_rand, double quiescent) {
+		state = new ArrayList<Byte>(width);
+		for(int i=0;i<width;i++) state.add((byte)0);
+		
+		
 		states = new HashSet<>();
 		for(int i = 0; i<num_rand; i++) {
 			int j = (width-num_rand)/2 + i; //technically does'nt matter due to the % transition rule but will make matching visuals easier
-			if(rand.nextDouble()>quiescent) {
-				transitions[j] = (byte)(rand.nextInt(K)+1);
+			if(random.nextDouble()>quiescent) {
+				transitions[j] = (byte)(random.nextInt(K)+1);
 			}
 		}
 	}
 	
-	public double increaseLambda(double delta, Random rand) {
+	public double increaseLambda(double delta) {
 		int quiescent = 0;
 		for(int i = 0; i<transitions.length; i++) {
 			if(transitions[i]==0) {
@@ -42,8 +54,8 @@ public class EdgeOfChaosAutomata {
 		}
 		for(int i = 0; i<transitions.length; i++) {
 			if(transitions[i]==0) {
-				if(rand.nextDouble()<(delta*transitions.length)/quiescent) {
-					transitions[i] = (byte)(rand.nextInt(K)+1);
+				if(random.nextDouble()<(delta*transitions.length)/quiescent) {
+					transitions[i] = (byte)(random.nextInt(K)+1);
 				}
 				quiescent--;
 			}
@@ -84,23 +96,44 @@ public class EdgeOfChaosAutomata {
 		return transitions[getIndex(neighborhood)];
 	}
 	
+	
+	public String stateToString() {
+		StringBuilder sb = new StringBuilder();
+		for(byte b : state) sb.append((int)b);
+		return sb.toString();
+	}
+	
+	
 	public boolean step() {
+		
 		if(!states.add(state)) {
+			System.out.println("State Extant: \t"  + stateToString());
 			return true;
+		}else {
+			System.out.println("State New: \t" + stateToString());
 		}
-		byte[] next = new byte[state.length];
-		for(int i = 0; i < state.length; i++) {
+		byte[] next = new byte[state.size()];
+		for(int i = 0; i < state.size(); i++) {
 			byte[] neighborhood = new byte[N];
 			for(int j = 0; j<N; j++) {
-				neighborhood[j] = state[(i+j-N/2+state.length)%state.length]; 
+				neighborhood[j] = state.get((i+j-N/2+state.size())%state.size()); 
 			}
 			next[i] = nextState(neighborhood);
 		}
-		state = next;
+		
+		//Copying byte arr to list...
+		{
+			state.clear();
+			for(byte b: next) state.add(b);
+		}
 		return false;
 	}
 	
 	public byte[] getState() {
-		return state;
+		
+		byte[] out = new byte[state.size()];
+		for(int i=0;i<state.size();i++) out[i] = state.get(i);
+		
+		return out;
 	}
 }
